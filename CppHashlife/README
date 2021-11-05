@@ -1,0 +1,3 @@
+This code is built specially for a little endian machine, because it deals with packet bit arrays.
+I don't think there's many big endian machines out there, but beware if you are on big endian.
+Also, this code would be MUCH simpler w/ big endian :/

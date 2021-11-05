@@ -1,0 +1,73 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "C/C++: g++.exe build game of life",
+			"command": "C:\\Program Files\\mingw-w64\\x86_64-8.1.0-posix-seh-rt_v6-rev0\\mingw64\\bin\\g++.exe",
+			"args": [
+				"-march=native",
+				"-O3",
+				// "-g",
+				
+				"${workspaceFolder}\\src\\*.cpp",
+				"${workspaceFolder}\\src\\utility\\*.cpp",
+				"${workspaceFolder}\\src\\glad.c",
+				
+				"-I${workspaceFolder}\\include",
+				"-IC:\\Program Files\\boost\\boost_1_75_0",
+
+				"-L${workspaceFolder}\\lib\\lib-mingw-w64",
+				"-lglfw3",
+				"-lgdi32",
+
+				"-o",
+				"${workspaceFolder}\\bin\\gameoflife.exe"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"type": "shell",
+			"label": "C/C++: g++.exe build find_net",
+			"command": "C:\\Program Files\\mingw-w64\\x86_64-8.1.0-posix-seh-rt_v6-rev0\\mingw64\\bin\\g++.exe",
+			"args": [
+				"-march=native",
+				// "-O3",
+				"-g",
+				
+				"${workspaceFolder}\\src\\find_net\\*.cpp",
+				"${workspaceFolder}\\src\\utility\\*.cpp",
+				"${workspaceFolder}\\src\\glad.c",
+				
+				"-I${workspaceFolder}\\include",
+				"-IC:\\Program Files\\boost\\boost_1_75_0",
+
+				"-L${workspaceFolder}\\lib\\lib-mingw-w64",
+				"-lglfw3",
+				"-lgdi32",
+
+				"-o",
+				"${workspaceFolder}\\bin\\findnet.exe"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}
