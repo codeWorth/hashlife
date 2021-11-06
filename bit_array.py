@@ -48,6 +48,10 @@ class BitArray:
 		return not sc_any(self.chunks)
 
 	# this will NOT handle size % self.chunk_size != 0 correctly
+	def fastAnyNonzero(self) -> bool:
+		return sc_any(self.chunks)
+
+	# this will NOT handle size % self.chunk_size != 0 correctly
 	def hash(self) -> bytes:
 		return self.chunks.tobytes() 
 
@@ -65,6 +69,10 @@ class BitArray:
 	def __and__(self, other: BitArray) -> BitArray:
 		out = self.copy()
 		out &= other
+		return out
+
+	def and_out(self, other: BitArray, out: BitArray) -> BitArray:
+		np.bitwise_and(self.chunks, other.chunks, out=out.chunks)
 		return out
 
 	def __xor__(self, other: BitArray) -> BitArray:
@@ -127,26 +135,28 @@ class BitArray:
 
 	# this will NOT handle size % self.chunk_size != 0 correctly
 	def __ilshift__(self, amount: int) -> BitArray:
-		if amount == 0: return self
+		# assert amount >= 0
 		if amount >= self.size:
 			self.chunks[:] = 0
 			return self
-		# assert amount > 0
-
-		if amount < self.chunk_size:
-			rolled = np.empty_like(self.chunks)
-			rolled[:-1] = self.chunks[1:]
-			rolled[-1] = 0 
-			np.left_shift(rolled, self.chunk_size - amount, out=rolled)
-
-			np.right_shift(self.chunks, amount, out=self.chunks)
-			np.bitwise_or(self.chunks, rolled, out=self.chunks)
-			return self
-		else:
+		
+		if (amount >= self.chunk_size):
 			rolls = amount // self.chunk_size
 			self.chunks[:-rolls] = self.chunks[rolls:]
 			self.chunks[-rolls:] = 0
-			return self.__ilshift__(amount - rolls * self.chunk_size)
+			amount -= rolls * self.chunk_size
+
+		if amount == 0: return self
+
+		rolled = np.empty_like(self.chunks)
+		rolled[:-1] = self.chunks[1:]
+		rolled[-1] = 0 
+		np.left_shift(rolled, self.chunk_size - amount, out=rolled)
+
+		np.right_shift(self.chunks, amount, out=self.chunks)
+		np.bitwise_or(self.chunks, rolled, out=self.chunks)
+		return self
+
 
 	def invert(self):
 		np.invert(self.chunks, out=self.chunks)
@@ -170,7 +180,7 @@ class BitArray:
 		return (byteIndex, bitIndex)
 
 	def __str__(self) -> str:
-		sep = ""
+		sep = " "
 		out_str = sep.join(list(BitArray.CHUNK_FORMAT(self.chunk_size).format(v)[::-1] for v in self.chunks[:-1]))
 		if (self.size > self.chunk_size):
 			out_str += sep
