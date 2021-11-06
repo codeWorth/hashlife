@@ -114,13 +114,14 @@ class OutputSpace:
 		self.space |= zeroOneValues # selected ..1..0.. outputs are now possible
 		self.space &= OutputSpace.iMaskForPair(i, j) # all ..0..1.. outputs are now impossible
 
-	def willChange(self, i: int, j: int) -> bool:
+	def willChange(self, i: int, j: int, mem: BitArray) -> bool:
 		# assert i < j
 		# assert j < NEIGHBOR_COUNT
 
-		zeroOneMask = OutputSpace.maskForPair(i, j)
-		zeroOneValues: BitArray = (self.space & zeroOneMask) # only select ..0..1.. indices
-		return not zeroOneValues.fastAllZero()
+		mem.setZeros()
+		mem |= OutputSpace.maskForPair(i, j)
+		mem &= self.space # only select ..0..1.. indices
+		return not mem.fastAllZero()
 
 	def isAllowed(self) -> bool:
 		disallowed = ~OutputSpace.ALLOWED_OUTPUT_SPACE
@@ -154,6 +155,7 @@ def remainingPairs(i: int, j: int) -> int:
 	iLeft = NEIGHBOR_COUNT - i - 1
 	return iLeft * (iLeft - 1) // 2 + NEIGHBOR_COUNT - j
 
+TEMP_MEM = BitArray(OUTPUT_SPACE_SIZE)
 def findSwaps(outputSpace: OutputSpace, swaps: list[tuple[int]], swaps_count: int, explored_output_spaces: dict[bytes, ExploredSpace], explored_count: ExploredCount):
 	spaceHash = outputSpace.hash()
 	if (spaceHash in explored_output_spaces):
@@ -184,7 +186,7 @@ def findSwaps(outputSpace: OutputSpace, swaps: list[tuple[int]], swaps_count: in
 	foundPaths: list[ExploredSpace] = []
 	for i in range(NEIGHBOR_COUNT - 1):
 		for j in range(i+1, NEIGHBOR_COUNT):
-			if (outputSpace.willChange(i, j)):
+			if (outputSpace.willChange(i, j, TEMP_MEM)):
 				newOut = OutputSpace(space=outputSpace.space.copy())
 				newOut.cmpSwap(i, j)
 				swaps[swaps_count] = (i, j)
@@ -210,18 +212,22 @@ def findSwaps(outputSpace: OutputSpace, swaps: list[tuple[int]], swaps_count: in
 
 	return None
 
-testSpace = OutputSpace()
+t1 = OutputSpace()
 for i, j in CORRECT_SWAPS:
-	testSpace.cmpSwap(i, j)
+	t1.cmpSwap(i, j)
 
-if testSpace.isAllowed():
+t2 = OutputSpace()
+for i, j in CORRECT_SWAPS[:-5]:
+	t2.cmpSwap(i, j)
+
+if t1.isAllowed() and not(t2.isAllowed()):
 	print("Passed sanity check")
 else:
 	print("Failed sanity check!")
 
 swaps_count = 0
 swaps = [None] * MAX_SWAPS
-start_swaps = CORRECT_SWAPS[:10]
+start_swaps = CORRECT_SWAPS[:8]
 outputSpace = OutputSpace()
 for i, j in start_swaps:
 	outputSpace.cmpSwap(i, j)

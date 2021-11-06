@@ -5,10 +5,10 @@ import numba as nb
 # short-circuiting replacement for np.any()
 @nb.jit(nopython=True)
 def sc_any(array):
-    for x in array.flat:
-        if x:
-            return True
-    return False
+	for x in array.flat:
+		if x:
+			return True
+	return False
 
 
 class BitArray:
@@ -50,6 +50,9 @@ class BitArray:
 	# this will NOT handle size % self.chunk_size != 0 correctly
 	def hash(self) -> bytes:
 		return self.chunks.tobytes() 
+
+	def setZeros(self):
+		self.chunks[:] = 0
 
 	def canOp(self, other: BitArray) -> bool:
 		return type(other) is BitArray and self.size == other.size and self.chunk_size == other.chunk_size
