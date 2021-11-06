@@ -31,7 +31,7 @@ CORRECT_SWAPS = [
 	(3, 4),
 	(5, 6),
 ]
-INITIAL_SWAPS = 8
+INITIAL_SWAPS = 4
 
 def isOutputAllowed(output: int):
 	neighbors = [0] * NEIGHBOR_COUNT
@@ -128,6 +128,9 @@ class OutputSpace:
 		disallowed &= self.space
 		return disallowed.fastAllZero()
 
+	def set(self, other: OutputSpace):
+		self.space.set(other.space)
+
 	def __str__(self) -> str:
 		return str(self.space)
 
@@ -159,6 +162,11 @@ def remainingPairs(i: int, j: int) -> int:
 	return iLeft * (iLeft - 1) // 2 + NEIGHBOR_COUNT - j
 
 TEMP_MEM = BitArray(OUTPUT_SPACE_SIZE)
+
+TEMP_SPACES: list[OutputSpace] = [0] * MAX_SWAPS
+for i in range(MAX_SWAPS):
+	TEMP_SPACES[i] = OutputSpace()
+
 def findSwaps(
 	outputSpace: OutputSpace, 
 	swaps: list[tuple[int]], 
@@ -208,7 +216,8 @@ def findSwaps(
 		for j in range(i+1, NEIGHBOR_COUNT):
 			mightChange = (swaps_count == 0 or (i != swaps[swaps_count-1][0] and j != swaps[swaps_count-1][1]))
 			if (mightChange and outputSpace.willChange(i, j, TEMP_MEM)):
-				newOut = OutputSpace(space=outputSpace.space.copy())
+				newOut = TEMP_SPACES[swaps_count]
+				newOut.set(outputSpace)
 				newOut.cmpSwap(i, j, TEMP_MEM)
 				swaps[swaps_count] = (i, j)
 				maybeFound = findSwaps(newOut, swaps, swaps_count + 1, explored_output_spaces, iter_count, max_swaps)

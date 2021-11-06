@@ -58,6 +58,9 @@ class BitArray:
 	def setZeros(self):
 		self.chunks[:] = 0
 
+	def set(self, other: BitArray):
+		self.chunks[:] = other.chunks[:]
+
 	def canOp(self, other: BitArray) -> bool:
 		return type(other) is BitArray and self.size == other.size and self.chunk_size == other.chunk_size
 
