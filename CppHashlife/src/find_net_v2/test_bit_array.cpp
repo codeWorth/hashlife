@@ -8,10 +8,10 @@ int main(int argc, char *argv[]) {
 
     int size = 256;
 
-    AvxBitArray bitArray(size);
+    AvxBitArray bitArray;
     cout << "zeros: " << bitArray.toString() << endl;
     
-    AvxBitArray onesArray(size, true);
+    AvxBitArray onesArray(true);
     cout << "ones: " << onesArray.toString() << endl;
 
     for (size_t i = 0; i < size; i++) {
@@ -25,12 +25,15 @@ int main(int argc, char *argv[]) {
     }
     cout << endl;
 
+    AvxBitArrayHash hashing;
+    cout << "hash: expecting " << ((2197547982ULL << 32) | 4047260535ULL) << ", got " << hashing(bitArray) << endl;
+
     cout << bitArray.toString() << " all zero: " << (bitArray.none() ? "yes" : "no") << endl;
     bitArray.zero();
     cout << bitArray.toString() << " all zero: " << (bitArray.none() ? "yes" : "no") << endl;
 
     
-    AvxBitArray shiftTests(size);
+    AvxBitArray shiftTests;
     for (size_t i = 0; i < size; i++) {
         shiftTests.set(i, i % 3 == 0);
     }
@@ -43,13 +46,13 @@ int main(int argc, char *argv[]) {
 
     cout << "shifting right (assignment): " << endl;
     for (size_t i = 0; i < 32; i++) {
-        AvxBitArray test(shiftTests);
+        AvxBitArray test;
         test >>= i;
         cout << "\t" << i << "\t" << test.toString(32) << endl;
     }
     cout << endl;
 
-    AvxBitArray cmpTest(size);
+    AvxBitArray cmpTest;
     cout << cmpTest.toString() << (cmpTest == shiftTests ? " == " : " != ") << shiftTests.toString() << endl;
 
     for (size_t i = 0; i < size; i++) {

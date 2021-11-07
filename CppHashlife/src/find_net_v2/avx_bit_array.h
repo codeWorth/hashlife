@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <algorithm>
 #include <cstring>
@@ -38,22 +39,16 @@ const uint8_t TOP_MASK_2 = 0b11110000;
 const uint8_t TOP_MASK_3 = 0b11000000;
 
 class AvxBitArray : public BitArray<AvxBitArray> {
-private:
-    __m256i chunks;
-    uint32_t size; // number of bits in the array
+public:
+    __m256i chunks; // read only pls
 
 public:
-    AvxBitArray(uint32_t size): AvxBitArray(size, false) {}
-    AvxBitArray(uint32_t size, bool high) {
-        #ifdef DEBUG
-            assert(size == AVX_SIZE);
-        #endif
-        this->size = size;
+    AvxBitArray(): AvxBitArray(false) {}
+    AvxBitArray(bool high) {
         this->chunks = _mm256_set1_epi8(high ? 0xFF : 0x00);
     }
 
     AvxBitArray(const AvxBitArray &other) {
-        this->size = other.size;
         this->chunks = other.chunks;
     }
 
@@ -66,6 +61,10 @@ public:
         AVX_STORE(values, chunks);
 
         return (values[chunkIndex] >> subChunkIndex) & 1;
+    }
+
+    void getAll(void *out) const {
+        AVX_STORE(out, chunks);
     }
 
     void zero() {
@@ -106,9 +105,6 @@ public:
     }
 
     AvxBitArray& operator|=(const AvxBitArray& other) {
-        #ifdef DEBUG
-			assert(canOp(other));
-		#endif
         chunks = _mm256_or_si256(chunks, other.chunks);
         return *this;
     }
@@ -120,9 +116,6 @@ public:
     }
 
     AvxBitArray& operator&=(const AvxBitArray& other) {
-        #ifdef DEBUG
-			assert(canOp(other));
-		#endif
         chunks = _mm256_and_si256(chunks, other.chunks);
         return *this;
     }
@@ -134,17 +127,10 @@ public:
     }
 
     void and_out(const AvxBitArray& other, AvxBitArray& out) const {
-        #ifdef DEBUG
-			assert(canOp(other));
-            assert(canOp(out));
-		#endif
         out.chunks = _mm256_or_si256(chunks, other.chunks);
     }
 
     AvxBitArray& operator^=(const AvxBitArray& other) {
-        #ifdef DEBUG
-			assert(canOp(other));
-		#endif
         chunks = _mm256_xor_si256(chunks, other.chunks);
         return *this;
     }
@@ -156,7 +142,7 @@ public:
     }
 
     AvxBitArray& operator<<=(uint32_t amount) {
-        if (amount >= size) {
+        if (amount >= AVX_SIZE) {
             zero();
             return *this;
         }
@@ -204,7 +190,7 @@ public:
     }
 
     AvxBitArray& operator>>=(uint32_t amount) {
-        if (amount >= size) {
+        if (amount >= AVX_SIZE) {
             zero();
             return *this;
         }
@@ -252,9 +238,6 @@ public:
     }
 
     bool operator==(AvxBitArray const& other) const {
-        #ifdef DEBUG
-			assert(canOp(other));
-		#endif
         auto cmp_result =_mm256_cmpeq_epi8(chunks, other.chunks);
         return _mm256_movemask_epi8(cmp_result) == 0xFFFFFFFF;
         return true;
@@ -265,22 +248,56 @@ public:
     }
 
     std::string toString(int size) const {
-        alignas(32) uint8_t values[AVX_SIZE / 8];
+        const int printingChunkSize = 8;
+        alignas(32) uint8_t values[AVX_SIZE / printingChunkSize];
         std::string out = "";
         std::string sep = " ";
         AVX_STORE(values, chunks);
 
-        for (size_t i = 0; i < size / 8; i++) {
+        for (size_t i = 0; i < size / printingChunkSize; i++) {
             if (i != 0) out += sep;
-            std::string bits = std::bitset<8>(values[i]).to_string();
+            std::string bits = std::bitset<printingChunkSize>(values[i]).to_string();
             std::reverse(bits.begin(), bits.end());
             out += bits;
         }
         return out;
     }
+};
 
-private:
-    bool canOp(const AvxBitArray& other) const {
-        return size == other.size;
+#define ROT32(x, r) _mm256_or_si256(_mm256_slli_epi32(x, r), _mm256_srli_epi32(x, 32 - r))
+
+// adaptation of MurmurHash (https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp)
+class AvxBitArrayHash {
+public:
+    uint64_t operator()(const AvxBitArray& bitArray) const {
+        const uint32_t seed = 0xdc5a1d43; // randomly generated
+        __m256i hs = _mm256_set1_epi32(seed); // only index 0 and 4 will be used
+
+        __m256i c1 = _mm256_set1_epi32(0xcc9e2d51);
+        __m256i c2 = _mm256_set1_epi32(0x1b873593);
+        __m256i c3 = _mm256_set1_epi32(0xe6546b64);
+        __m256i five = _mm256_set1_epi32(5); // five
+
+        auto blocks_reg = _mm256_mullo_epi32(bitArray.chunks, c1);
+        blocks_reg = ROT32(blocks_reg, 15);
+        blocks_reg = _mm256_mullo_epi32(blocks_reg, c2);
+        
+        for(int i = 0; i < 4; i++) {
+            hs = _mm256_xor_si256(hs, blocks_reg);
+            hs = ROT32(hs, 13);
+            hs = _mm256_mullo_epi32(hs, five);
+            hs = _mm256_add_epi32(hs, c3);
+            blocks_reg = _mm256_srli_si256(blocks_reg, 4);
+        }
+
+        hs = _mm256_xor_si256(hs, _mm256_srli_epi32(hs, 16));
+        hs = _mm256_mullo_epi32(hs, _mm256_set1_epi32(0x85ebca6b));
+        hs = _mm256_xor_si256(hs, _mm256_srli_epi32(hs, 13));
+        hs = _mm256_mullo_epi32(hs, _mm256_set1_epi32(0xc2b2ae35));
+        hs = _mm256_xor_si256(hs, _mm256_srli_epi32(hs, 16));
+
+        uint64_t hLow = _mm256_extract_epi32(hs, 0);
+        uint64_t hHigh = _mm256_extract_epi32(hs, 4);
+        return (hHigh << 32) | (hLow & 0xFFFFFFFF);
     }
 };
