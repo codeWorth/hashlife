@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import math
-from bit_array import BitArray, sc_any
+from bit_array import BitArray
 from util import NEIGHBOR_COUNT, nodesInTree, remainingPairs, binaryToArray
 
 class NeighborMaskFactory:
@@ -215,7 +215,7 @@ class NetFinder:
 		found: ExploredSpace = None
 		for i in range(NEIGHBOR_COUNT - 1):
 			for j in range(i+1, NEIGHBOR_COUNT):
-				mightChange = (swaps_count == 0 or (i != swaps[swaps_count-1][0] and j != swaps[swaps_count-1][1]))
+				mightChange = (swaps_count == 0 or not(i == swaps[swaps_count-1][0] and j == swaps[swaps_count-1][1]))
 				if (mightChange and outputSpace.willChange(i, j, self.temp_mem)):
 					newOut = self.temp_spaces[swaps_count]
 					newOut.set(outputSpace)

@@ -43,7 +43,7 @@ public:
     __m256i chunks; // read only pls
 
 public:
-    AvxBitArray(): AvxBitArray(false) {}
+    AvxBitArray(): AvxBitArray(true) {}
     AvxBitArray(bool high) {
         this->chunks = _mm256_set1_epi8(high ? 0xFF : 0x00);
     }
@@ -127,7 +127,7 @@ public:
     }
 
     void and_out(const AvxBitArray& other, AvxBitArray& out) const {
-        out.chunks = _mm256_or_si256(chunks, other.chunks);
+        out.chunks = _mm256_and_si256(chunks, other.chunks);
     }
 
     AvxBitArray& operator^=(const AvxBitArray& other) {
@@ -266,8 +266,10 @@ public:
 
 #define ROT32(x, r) _mm256_or_si256(_mm256_slli_epi32(x, r), _mm256_srli_epi32(x, 32 - r))
 
+#include <iostream>
+
 // adaptation of MurmurHash (https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp)
-class AvxBitArrayHash {
+class AvxBitArrayHasher {
 public:
     uint64_t operator()(const AvxBitArray& bitArray) const {
         const uint32_t seed = 0xdc5a1d43; // randomly generated

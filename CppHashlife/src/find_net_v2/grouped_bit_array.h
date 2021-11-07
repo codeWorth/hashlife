@@ -22,7 +22,7 @@ private:
 	uint32_t chunk_count;
 
 public:
-    GroupedBitArray(uint32_t size): GroupedBitArray(size, false) {}
+    GroupedBitArray(uint32_t size): GroupedBitArray(size, true) {}
 	GroupedBitArray(uint32_t size, bool high) {
 		#ifdef DEBUG
 			assert(size % CHUNK_SIZE == 0);
