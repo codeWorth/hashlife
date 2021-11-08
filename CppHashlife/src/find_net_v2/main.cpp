@@ -1,6 +1,8 @@
 #include "net_finder.h"
 #include <iostream>
 
+#include "grouped_bit_array.h"
+
 using namespace std;
 
 #define IS_ALLOWED conwayAllowed
@@ -33,6 +35,12 @@ bool conwayAllowed(bool* neighbors) {
 }
 
 int main(int argc, char *argv[]) {
+    std::cout << "GroupedBitArray: " << sizeof(GroupedBitArray) << std::endl;
+    std::cout << "AvxBitArray: " << sizeof(AvxBitArray) << std::endl;
+    std::cout << "__m256i: " << sizeof(__m256i) << std::endl;
+
+    return 0;
+
     AvxBitArray allowedOutputSpace;
     bool neighbors[NEIGHBOR_COUNT];
     for (int output = 0; output < OUTPUT_SPACE_SIZE; output++) {
@@ -44,9 +52,9 @@ int main(int argc, char *argv[]) {
     correctSwaps.push_back(Swap(0, 4));
     correctSwaps.push_back(Swap(1, 5));
     correctSwaps.push_back(Swap(2, 6));
-    correctSwaps.push_back(Swap(3, 7));
-    correctSwaps.push_back(Swap(0, 2));
-    correctSwaps.push_back(Swap(1, 3));
+    // correctSwaps.push_back(Swap(3, 7));
+    // correctSwaps.push_back(Swap(0, 2));
+    // correctSwaps.push_back(Swap(1, 3));
     // correctSwaps.push_back(Swap(4, 6));
     // correctSwaps.push_back(Swap(5, 7));
     // correctSwaps.push_back(Swap(2, 4));
@@ -65,6 +73,7 @@ int main(int argc, char *argv[]) {
     NetFinder finder(correctSwaps, 17, &maskFactory, ~allowedOutputSpace);
     std::vector<Swap> gotSwaps = finder.findBest();
 
+    cout << "Height: " << gotSwaps.size() << endl;
     for (int i = 0; i < gotSwaps.size(); i++) {
         cout << (int)gotSwaps[i].i << ", " << (int)gotSwaps[i].j << endl;
     }

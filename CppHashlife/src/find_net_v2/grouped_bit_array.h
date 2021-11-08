@@ -8,28 +8,35 @@
 #include <bitset>
 #include "bit_array.h"
 
-#define DEBUG
-
 #define CHUNK_DTYPE uint8_t // this MUST be an unsigned type
 const uint32_t CHUNK_SIZE = sizeof(CHUNK_DTYPE) * 8;
 const uint8_t CHUNK_SHIFT = (uint8_t) log2(CHUNK_SIZE); // rshift bit index by this to get index of chunk
 const uint32_t CHUNK_MASK = CHUNK_SIZE - 1; // mask bit index by this to get sub-chunk index
 
-class GroupedBitArray : public BitArray<GroupedBitArray> {
-private:
+// sublcass BitArray DOUBLES memory usage
+// class GroupedBitArray : public BitArray<GroupedBitArray> {
+class GroupedBitArray {
+protected:
 	CHUNK_DTYPE* chunks;
+	// uint16_t type uneeded, because pointer makes align = 8 bytes anyway
 	uint32_t size; // number of bits in the array
 	uint32_t chunk_count;
+
+protected:
+	GroupedBitArray() {
+		this->size = 0;
+		this->chunk_count = 0;
+	}
 
 public:
     GroupedBitArray(uint32_t size): GroupedBitArray(size, true) {}
 	GroupedBitArray(uint32_t size, bool high) {
 		#ifdef DEBUG
-			assert(size % CHUNK_SIZE == 0);
 			assert(size > 0);
 		#endif
 		this->size = size;
 		this->chunk_count = size >> CHUNK_SHIFT;
+		if (size % CHUNK_SIZE != 0) this->chunk_count++;
 		this->chunks = new CHUNK_DTYPE[this->chunk_count];
 		std::fill(chunks, chunks + this->chunk_count, high ? -1 : 0);
 	}
@@ -49,6 +56,17 @@ public:
 		uint32_t chunkIndex, subChunkIndex;
 		indices(index, chunkIndex, subChunkIndex);
 		return (chunks[chunkIndex] >> subChunkIndex) & 1;
+	}
+
+	// index is in bits
+	uint8_t getByte(uint32_t index) const {
+		uint32_t chunkIndex, subChunkIndex;
+		indices(index, chunkIndex, subChunkIndex);
+		uint8_t b = chunks[chunkIndex] >> subChunkIndex;
+		if (chunkIndex + 1 < chunk_count && subChunkIndex + 8 >= CHUNK_SIZE) {
+			b |= chunks[chunkIndex + 1] << (CHUNK_SIZE - subChunkIndex);
+		} 
+		return b;
 	}
 
 	void zero() {

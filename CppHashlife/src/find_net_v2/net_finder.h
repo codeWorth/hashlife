@@ -3,8 +3,20 @@
 #include <vector>
 #include <iostream>
 #include <assert.h>
+
+#if defined(_WIN32) || defined(_WIN64) || (defined(__CYGWIN__) && !defined(_WIN32))
+    #define WINDOWS
+#endif
+
+#ifdef WINDOWS
+    #include "windows.h"
+    #include "psapi.h"
+#endif
+
 #include "constants.h"
 #include "avx_bit_array.h"
+#include "compressed_bit_array.h"
+#include "bit_array_compressor.h"
 #include "mask_factory.h"
 #include "utility.h"
 
@@ -52,7 +64,8 @@ public:
 
         uint64_t iterCount = 0;
         std::vector<Swap> swaps;
-        std::unordered_map<AvxBitArray, ExploredSpace, AvxBitArrayHasher> exploredOutputSpaces;
+        BitArrayCompressor compressor;
+        std::unordered_map<CompressedBitArray, ExploredSpace, CompressedBitArrayHasher> exploredOutputSpaces;
         AvxBitArray outputSpace;
         for (int i = 0; i < startSwaps.size(); i++) {
             Swap swap(startSwaps[i].i, startSwaps[i].j);
@@ -64,15 +77,19 @@ public:
             swaps.push_back(a);
         }
 
-        ExploredSpace best = findSwaps(outputSpace, swaps, startSwaps.size(), exploredOutputSpaces, iterCount, totalMaxSwaps);
+        ExploredSpace best = findSwaps(outputSpace, swaps, startSwaps.size(), exploredOutputSpaces, iterCount, totalMaxSwaps, compressor);
         std::vector<Swap> goodSwaps;
+        for (int i = 0; i < startSwaps.size(); i++) {
+            goodSwaps.push_back(startSwaps[i]);
+        }
+
         while (best.success && best.height > 0) {
             goodSwaps.push_back(best.swap);
             compareSwap(outputSpace, best.swap.i, best.swap.j);
             if (isAllowed(outputSpace)) {
                 break;
             } else {
-                best = exploredOutputSpaces[outputSpace];
+                best = exploredOutputSpaces[compressor.findable(outputSpace)];
             }
         }
 
@@ -96,13 +113,14 @@ public:
         const AvxBitArray& outputSpace,
         std::vector<Swap>& swaps, // for logging only
         int swapsCount,
-        std::unordered_map<AvxBitArray, ExploredSpace, AvxBitArrayHasher>& exploredOutputSpaces,
+        std::unordered_map<CompressedBitArray, ExploredSpace, CompressedBitArrayHasher>& exploredOutputSpaces,
         uint64_t& iterCount,
-        int maxSwaps
+        int maxSwaps,
+        BitArrayCompressor& compressor
     ) {
         iterCount++;
         #ifdef LOGGING
-            if (iterCount >= 0xFFFFFF) {
+            if (iterCount >= 5000000) {
                 iterCount = 0;
                 uint64_t exploredCount = 0;
                 double percentDone = 0;
@@ -114,7 +132,13 @@ public:
                 
                 percentDone = round(percentDone * 100.0 * 10000.0) / 10000.0;
                 std::cout << "Explored " << exploredCount << " (" << percentDone << "%)" << std::endl;
-                std::cout << "exploredOutputSpaces length = " << exploredOutputSpaces.size() << std::endl << std::endl;
+                std::cout << "exploredOutputSpaces length = " << exploredOutputSpaces.size() << std::endl;
+                #ifdef WINDOWS
+                    PROCESS_MEMORY_COUNTERS_EX pmc;
+                    GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc));
+                    std::cout << "Currently used memory: " << (pmc.PrivateUsage / 1000000) << " mb" << std::endl << std::endl;
+                #endif
+                std::cout << std::endl;
             }
         #endif
 
@@ -123,7 +147,8 @@ public:
             return exploredOut;
         }
 
-        auto exploredIt = exploredOutputSpaces.find(outputSpace);
+        const CompressedBitArray findable = compressor.findable(outputSpace);
+        auto exploredIt = exploredOutputSpaces.find(findable);
         if (exploredIt != exploredOutputSpaces.end()) {
             ExploredSpace explored = exploredIt->second;
             // fail if:
@@ -148,11 +173,11 @@ public:
                 bool mightChange = (swapsCount == 0 || !(i == swaps[swapsCount-1].i && j == swaps[swapsCount-1].j));
                 if (mightChange && willChange(outputSpace, i, j)) {
                     AvxBitArray newOutputSpace = stackTempMemory[swapsCount];
-                    newOutputSpace.chunks = outputSpace.chunks;
+                    newOutputSpace.setAll(outputSpace);
                     compareSwap(newOutputSpace, i, j);
                     swaps[swapsCount].i = i;
                     swaps[swapsCount].j = j;
-                    ExploredSpace maybeFound = findSwaps(newOutputSpace, swaps, swapsCount + 1, exploredOutputSpaces, iterCount, maxSwaps);
+                    ExploredSpace maybeFound = findSwaps(newOutputSpace, swaps, swapsCount + 1, exploredOutputSpaces, iterCount, maxSwaps, compressor);
                     if (maybeFound.success) {
                         maxSwaps = swapsCount + maybeFound.height;
                         found.height = maybeFound.height + 1;
@@ -165,18 +190,18 @@ public:
         }
 
         if (found.success) {
-            exploredOutputSpaces[outputSpace] = found;
+            exploredOutputSpaces[findable] = found;
             return found;
         }
         
-        exploredIt = exploredOutputSpaces.find(outputSpace);
+        exploredIt = exploredOutputSpaces.find(findable);
         if (exploredIt != exploredOutputSpaces.end()) {
             if (exploredIt->second.height < maxSwaps - swapsCount) {
                 exploredIt->second.height = maxSwaps - swapsCount;
             }
         } else {
-            exploredOutputSpaces[outputSpace].height = maxSwaps - swapsCount;
-            exploredOutputSpaces[outputSpace].success = false;
+            exploredOutputSpaces[findable].height = maxSwaps - swapsCount;
+            exploredOutputSpaces[findable].success = false;
         }
 
         return exploredOut;
