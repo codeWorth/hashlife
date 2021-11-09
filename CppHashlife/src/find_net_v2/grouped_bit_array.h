@@ -6,7 +6,6 @@
 #include <math.h>
 #include <string>
 #include <bitset>
-#include "bit_array.h"
 
 #define DEBUG
 
@@ -15,7 +14,7 @@ const uint32_t CHUNK_SIZE = sizeof(CHUNK_DTYPE) * 8;
 const uint8_t CHUNK_SHIFT = (uint8_t) log2(CHUNK_SIZE); // rshift bit index by this to get index of chunk
 const uint32_t CHUNK_MASK = CHUNK_SIZE - 1; // mask bit index by this to get sub-chunk index
 
-class GroupedBitArray : public BitArray<GroupedBitArray> {
+class GroupedBitArray  {
 private:
 	CHUNK_DTYPE* chunks;
 	uint32_t size; // number of bits in the array

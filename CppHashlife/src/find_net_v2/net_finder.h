@@ -10,6 +10,15 @@
 
 #define LOGGING
 
+#if defined(_WIN32) || defined(_WIN64) || (defined(__CYGWIN__) && !defined(_WIN32))
+    #define WINDOWS
+#endif
+
+#ifdef WINDOWS
+    #include "windows.h"
+    #include "psapi.h"
+#endif
+
 struct Swap {
     uint8_t i;
     uint8_t j;
@@ -66,6 +75,10 @@ public:
 
         ExploredSpace best = findSwaps(outputSpace, swaps, startSwaps.size(), exploredOutputSpaces, iterCount, totalMaxSwaps);
         std::vector<Swap> goodSwaps;
+        for (int i = 0; i < startSwaps.size(); i++) {
+            goodSwaps.push_back(startSwaps[i]);
+        }
+
         while (best.success && best.height > 0) {
             goodSwaps.push_back(best.swap);
             compareSwap(outputSpace, best.swap.i, best.swap.j);
@@ -114,7 +127,13 @@ public:
                 
                 percentDone = round(percentDone * 100.0 * 10000.0) / 10000.0;
                 std::cout << "Explored " << exploredCount << " (" << percentDone << "%)" << std::endl;
-                std::cout << "exploredOutputSpaces length = " << exploredOutputSpaces.size() << std::endl << std::endl;
+                std::cout << "exploredOutputSpaces length = " << exploredOutputSpaces.size() << std::endl;
+                #ifdef WINDOWS
+                    PROCESS_MEMORY_COUNTERS_EX pmc;
+                    GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc));
+                    std::cout << "Currently used memory: " << (pmc.PrivateUsage / 1000000) << " mb" << std::endl;
+                #endif
+                std::cout << std::endl;
             }
         #endif
 
@@ -148,7 +167,7 @@ public:
                 bool mightChange = (swapsCount == 0 || !(i == swaps[swapsCount-1].i && j == swaps[swapsCount-1].j));
                 if (mightChange && willChange(outputSpace, i, j)) {
                     AvxBitArray newOutputSpace = stackTempMemory[swapsCount];
-                    newOutputSpace.chunks = outputSpace.chunks;
+                    newOutputSpace.setAll(outputSpace);
                     compareSwap(newOutputSpace, i, j);
                     swaps[swapsCount].i = i;
                     swaps[swapsCount].j = j;

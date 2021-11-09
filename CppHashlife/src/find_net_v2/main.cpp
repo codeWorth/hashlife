@@ -47,8 +47,8 @@ int main(int argc, char *argv[]) {
     correctSwaps.push_back(Swap(3, 7));
     correctSwaps.push_back(Swap(0, 2));
     correctSwaps.push_back(Swap(1, 3));
-    // correctSwaps.push_back(Swap(4, 6));
-    // correctSwaps.push_back(Swap(5, 7));
+    correctSwaps.push_back(Swap(4, 6));
+    correctSwaps.push_back(Swap(5, 7));
     // correctSwaps.push_back(Swap(2, 4));
     // correctSwaps.push_back(Swap(3, 5));
     // correctSwaps.push_back(Swap(0, 1));
@@ -65,7 +65,11 @@ int main(int argc, char *argv[]) {
     NetFinder finder(correctSwaps, 17, &maskFactory, ~allowedOutputSpace);
     std::vector<Swap> gotSwaps = finder.findBest();
 
+    AvxBitArray outputSpace;
+    cout << "Height: " << gotSwaps.size() << endl;
     for (int i = 0; i < gotSwaps.size(); i++) {
+        finder.compareSwap(outputSpace, gotSwaps[i].i, gotSwaps[i].j);
         cout << (int)gotSwaps[i].i << ", " << (int)gotSwaps[i].j << endl;
     }
+    cout << "Success? " << finder.isAllowed(outputSpace) << endl;
 }

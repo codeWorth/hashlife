@@ -8,7 +8,6 @@
 #include <string>
 #include <bitset>
 #include <immintrin.h>
-#include "bit_array.h"
 
 #define DEBUG
 
@@ -17,6 +16,7 @@ const uint32_t AVX_SIZE = 256;
 
 #define AVX_LOAD(src) _mm256_load_si256(reinterpret_cast<const __m256i*>(src))
 #define AVX_STORE(dest, src) _mm256_store_si256(reinterpret_cast<__m256i*>(dest), src)
+#define ROT32(x, r) _mm256_or_si256(_mm256_slli_epi32(x, r), _mm256_srli_epi32(x, 32 - r))
 
 const uint8_t RIGHT_SHIFT_0 = 0b11100100; // dst[3] = src[3], 2 = 2, 1 = 1, 0 = 0
 const uint8_t RIGHT_SHIFT_1 = 0b10010011; // dst[3] = src[2], 2 = 1, 1 = 0, 0 = 0
@@ -38,9 +38,9 @@ const uint8_t TOP_MASK_1 = 0b11111100;
 const uint8_t TOP_MASK_2 = 0b11110000;
 const uint8_t TOP_MASK_3 = 0b11000000;
 
-class AvxBitArray : public BitArray<AvxBitArray> {
-public:
-    __m256i chunks; // read only pls
+class AvxBitArray {
+private:
+    __m256i chunks;
 
 public:
     AvxBitArray(): AvxBitArray(true) {}
@@ -86,6 +86,10 @@ public:
         }
         
         chunks = AVX_LOAD(values);
+    }
+
+    void setAll(const AvxBitArray& other) {
+        chunks = other.chunks;
     }
 
     bool none() const {
@@ -262,16 +266,9 @@ public:
         }
         return out;
     }
-};
 
-#define ROT32(x, r) _mm256_or_si256(_mm256_slli_epi32(x, r), _mm256_srli_epi32(x, 32 - r))
-
-#include <iostream>
-
-// adaptation of MurmurHash (https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp)
-class AvxBitArrayHasher {
-public:
-    uint64_t operator()(const AvxBitArray& bitArray) const {
+    // adaptation of MurmurHash (https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp)
+    uint64_t hash() const {
         const uint32_t seed = 0xdc5a1d43; // randomly generated
         __m256i hs = _mm256_set1_epi32(seed); // only index 0 and 4 will be used
 
@@ -280,7 +277,7 @@ public:
         __m256i c3 = _mm256_set1_epi32(0xe6546b64);
         __m256i five = _mm256_set1_epi32(5); // five
 
-        auto blocks_reg = _mm256_mullo_epi32(bitArray.chunks, c1);
+        auto blocks_reg = _mm256_mullo_epi32(chunks, c1);
         blocks_reg = ROT32(blocks_reg, 15);
         blocks_reg = _mm256_mullo_epi32(blocks_reg, c2);
         
@@ -301,5 +298,12 @@ public:
         uint64_t hLow = _mm256_extract_epi32(hs, 0);
         uint64_t hHigh = _mm256_extract_epi32(hs, 4);
         return (hHigh << 32) | (hLow & 0xFFFFFFFF);
+    }
+};
+
+class AvxBitArrayHasher {
+public:
+    uint64_t operator()(const AvxBitArray& bitArray) const {
+        return bitArray.hash();
     }
 };
