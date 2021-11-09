@@ -190,7 +190,7 @@ public:
         }
 
         if (found.success) {
-            exploredOutputSpaces[findable] = found;
+            exploredOutputSpaces[compressor.compress(outputSpace)] = found;
             return found;
         }
         
@@ -200,6 +200,7 @@ public:
                 exploredIt->second.height = maxSwaps - swapsCount;
             }
         } else {
+            
             exploredOutputSpaces[findable].height = maxSwaps - swapsCount;
             exploredOutputSpaces[findable].success = false;
         }

@@ -1,15 +1,20 @@
 #pragma once
 #include "grouped_bit_array.h"
+#include "avx_bit_array.h"
 
-class CompressedBitArray: public GroupedBitArray {
+class CompressedBitArray {
 public:
-    CompressedBitArray(uint64_t hash): GroupedBitArray() {
-        this->chunks = new CHUNK_DTYPE[8 / sizeof(CHUNK_DTYPE)];
-        ((uint64_t* )this->chunks)[0] = hash;
-        this->size = 0;
+    GroupedBitArray::Lazy lazyGroupedBitArray;
+
+public:
+    CompressedBitArray(uint64_t hash, const AvxBitArray* bitArray) {
+        this->lazyGroupedBitArray.findable.hash = hash;
+        this->lazyGroupedBitArray.findable.uncompressedBitArray = bitArray;
     }
 
-    CompressedBitArray(uint32_t size, bool value): GroupedBitArray(size, value) {}
+    CompressedBitArray(GroupedBitArray::Data data) {
+        this->lazyGroupedBitArray.data = data;
+    }
 };
 
 class CompressedBitArrayHasher {

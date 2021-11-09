@@ -8,7 +8,6 @@
 #include <string>
 #include <bitset>
 #include <immintrin.h>
-#include "bit_array.h"
 
 #define CHUNK_DTYPE uint8_t // this MUST be an unsigned type
 const uint32_t AVX_SIZE = 256;

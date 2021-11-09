@@ -6,7 +6,7 @@
 #include <math.h>
 #include <string>
 #include <bitset>
-#include "bit_array.h"
+#include "avx_bit_array.h"
 
 #define CHUNK_DTYPE uint8_t // this MUST be an unsigned type
 const uint32_t CHUNK_SIZE = sizeof(CHUNK_DTYPE) * 8;
@@ -16,17 +16,32 @@ const uint32_t CHUNK_MASK = CHUNK_SIZE - 1; // mask bit index by this to get sub
 // sublcass BitArray DOUBLES memory usage
 // class GroupedBitArray : public BitArray<GroupedBitArray> {
 class GroupedBitArray {
-protected:
+public:
+	struct Findable {
+		uint64_t hash;
+		const AvxBitArray* uncompressedBitArray;
+	};
+
+	struct Data {
+		CHUNK_DTYPE* chunks;
+		uint32_t size;
+		const uint32_t zeros = 0; // used to check Data vs Findable
+	};
+
+	union Lazy {
+		Data data; // contains actualy GroupedBitArray data
+		Findable findable; // contains only enough data to find GroupedBitArray in a map, and to create it when required
+
+		bool instantiated() const {
+			return data.zeros == 0;
+		}
+	};
+
+private:
 	CHUNK_DTYPE* chunks;
 	// uint16_t type uneeded, because pointer makes align = 8 bytes anyway
 	uint32_t size; // number of bits in the array
 	uint32_t chunk_count;
-
-protected:
-	GroupedBitArray() {
-		this->size = 0;
-		this->chunk_count = 0;
-	}
 
 public:
     GroupedBitArray(uint32_t size): GroupedBitArray(size, true) {}
@@ -48,8 +63,23 @@ public:
 		std::memcpy(this->chunks, other.chunks, this->size / 8);
 	}
 
+	// only use this if you really know what you're doing...
+	GroupedBitArray(Data data) {
+		this->chunks = data.chunks;
+		this->size = data.size;
+		this->chunk_count = size >> CHUNK_SHIFT;
+		if (size % CHUNK_SIZE != 0) this->chunk_count++;
+	}
+
 	~GroupedBitArray() {
 		delete[] chunks;
+	}
+
+	Data getData() const {
+		Data d;
+		d.chunks = chunks;
+		d.size = size;
+		return d;
 	}
 
 	bool get(uint32_t index) const {
