@@ -5,11 +5,13 @@ The main program can be found in /CppHashlife
 This program uses AVX-256 operations to compute the next state of Conway's Game of Life in batches of 256 cells at once. 
 In each iteration, cells are put into bit arrays like so:
 
+```
 Cell state:         0 1 0 0 0 1 ...
 -------------------------------------
 Top left neighbor:  1 0 0 0 1 0 ...
 Top neighbor:       0 1 0 0 1 0 ...
 ...
+```
 
 Then, each column in the above matrix is sorted using a sorting network and a compare_swap operation defined like this:
 CMP_SWAP(i, j):
